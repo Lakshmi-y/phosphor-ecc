@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <sdbusplus/bus.hpp>
 #include <sdbusplus/server/object.hpp>
 #include <sdeventplus/clock.hpp>
@@ -13,14 +14,14 @@ namespace memory
 {
 
 template <typename... T>
-using ServerObject = typename sdbusplus::server::object_t<T...>;
+using ServerObject = typename sdbusplus::server::object::object<T...>;
 
 using EccInterface = sdbusplus::xyz::openbmc_project::Memory::server::MemoryECC;
 using EccObject = ServerObject<EccInterface>;
 /** @class
  *  @brief Manages ECC
  */
-class ECC : sdbusplus::server::object_t<
+class ECC : sdbusplus::server::object::object<
                 sdbusplus::xyz::openbmc_project::Memory::server::MemoryECC>
 {
   public:
@@ -36,8 +37,8 @@ class ECC : sdbusplus::server::object_t<
      * @param[in] bus     - Handle to system dbus
      * @param[in] objPath - The Dbus path
      */
-    ECC(sdbusplus::bus_t& bus, const std::string& objPath) :
-        sdbusplus::server::object_t<
+    ECC(sdbusplus::bus::bus& bus, const std::string& objPath) :
+        sdbusplus::server::object::object<
             sdbusplus::xyz::openbmc_project::Memory::server::MemoryECC>(
             bus, objPath.c_str()),
         _bus(bus), _event(sdeventplus::Event::get_default()),
@@ -45,16 +46,21 @@ class ECC : sdbusplus::server::object_t<
             // Nothing to do here
         };
 
-    int64_t previousCeCounter = 0;
-    int64_t previousUeCounter = 0;
+    int64_t currentCeCount = 0;
+    int64_t currentUeCount = 0;
     int64_t maxECCLog = 0;
+#ifdef ECC_PHOSPHOR_LOGGING
+    int64_t startCeCount = 0;
+    bool maxCeLimitReached = false;
+    std::chrono::system_clock::time_point maxCeLimitReachedTime{};
+#endif
 
     void run();
     void controlEDACReport(std::string);
 
   private:
     /** @brief sdbusplus bus client connection. */
-    sdbusplus::bus_t& _bus;
+    sdbusplus::bus::bus& _bus;
     /** @brief the Event Loop structure */
     sdeventplus::Event _event;
     /** @brief Read Timer */
